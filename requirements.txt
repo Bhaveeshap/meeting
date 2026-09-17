@@ -1,0 +1,15 @@
+# Core (required to run dedup_engine / state_engine / workload_analytics / pipeline_demo)
+numpy>=1.26
+scikit-learn>=1.3
+
+# Optional — real LLM extraction (Module 1 production path, extraction_module.extract_with_claude)
+anthropic>=0.40
+
+# Optional — production-grade semantic embeddings instead of the offline
+# HashingVectorizer fallback (dedup_engine.SentenceTransformerBackend)
+sentence-transformers>=2.7
+
+# Optional — if you stand up the real Postgres store instead of the
+# in-memory StateStore (see schema.sql)
+psycopg[binary]>=3.1
+pgvector>=0.2

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://loopkeeper.internal/schemas/meeting_extraction.json",
+  "title": "LoopKeeperMeetingExtraction",
+  "description": "Structured action items extracted from a single meeting's raw notes/transcript.",
+  "type": "object",
+  "required": ["meeting_date", "action_items"],
+  "additionalProperties": false,
+  "properties": {
+    "meeting_date": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO-8601 date (YYYY-MM-DD) of the meeting. Provided by the caller, echoed back for validation."
+    },
+    "meeting_title": {
+      "type": ["string", "null"],
+      "description": "Short title/subject of the meeting if stated, else null."
+    },
+    "attendees": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Names mentioned as present, if identifiable. Best-effort; empty array if unknown."
+    },
+    "action_items": {
+      "type": "array",
+      "description": "One entry per distinct action item mentioned in this meeting. Include an item even if it looks like a duplicate/follow-up of a task from a previous meeting — deduplication is handled downstream by the state engine, NOT by the extractor.",
+      "items": {
+        "type": "object",
+        "required": [
+          "raw_text",
+          "action_description",
+          "assignee",
+          "deadline",
+          "status_explicit",
+          "is_followup_reference",
+          "confidence"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "raw_text": {
+            "type": "string",
+            "description": "The verbatim sentence(s) from the notes this item was extracted from."
+          },
+          "action_description": {
+            "type": "string",
+            "description": "A clean, third-person, verb-first restatement of the task, e.g. 'Draft the Q4 pitch deck'. Strip filler words but preserve the specific subject matter — this text feeds a semantic similarity matcher, so precision here matters more than brevity."
+          },
+          "assignee": {
+            "type": "string",
+            "description": "The person responsible, exactly as named/referred to in the notes (e.g. 'Bhaveesha', 'she', resolved to the nearest named antecedent). Never invent a name — if no owner is stated or inferable, use 'Unassigned'."
+          },
+          "deadline": {
+            "type": ["string", "null"],
+            "format": "date",
+            "description": "Resolved ISO-8601 date (YYYY-MM-DD). Relative phrases ('by Friday', 'next week', 'end of month') MUST be resolved against meeting_date. Null if no deadline was stated."
+          },
+          "deadline_phrase_raw": {
+            "type": ["string", "null"],
+            "description": "The original deadline phrase as spoken, e.g. 'by end of next week', for audit purposes."
+          },
+          "status_explicit": {
+            "type": "string",
+            "enum": ["done", "pending", "blocked", "cancelled", "none"],
+            "description": "Status ONLY if explicitly stated or unambiguously implied in this meeting (e.g. 'I finished the deck' -> done; 'still waiting on legal' -> blocked). Use 'none' if the meeting only mentions/restates the task without commenting on its status — the state engine will infer status from deadlines and prior state in that case."
+          },
+          "is_followup_reference": {
+            "type": "boolean",
+            "description": "True if the speaker explicitly references this as a previously-discussed/ongoing item (e.g. 'following up on the pitch deck', 'same as last week'). False if it reads as a brand-new ask. This is a hint for the dedup engine, not a guarantee — final matching is decided by semantic similarity + assignee matching."
+          },
+          "pushback_signal": {
+            "type": "boolean",
+            "default": false,
+            "description": "True if the notes explicitly describe the deadline moving later (e.g. 'pushing this to next Friday', 'need more time'). Helps the state engine distinguish a genuine pushback from a first-time deadline."
+          },
+          "notes": {
+            "type": ["string", "null"],
+            "description": "Any additional context useful for the audit trail (blockers, reasons for delay, etc.)."
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Extractor's self-assessed confidence that this is a genuine, actionable item (not small talk or a completed FYI)."
+          }
+        }
+      }
+    }
+  }
+}
